@@ -9366,6 +9366,31 @@ def collect_telegram_fix_payload() -> dict[str, Any]:
         }
     )
 
+    recent_log_text = "".join(tail_log_lines(module_log_path("spark-telegram-bot"), 50))
+    has_fallback_handler = any(
+        marker in recent_log_text.lower()
+        for marker in ("fallback", "unknown command", "unhandled", "catch-all", "default handler")
+    )
+    checks.append(
+        {
+            "name": "fallback_message_handler",
+            "ok": has_fallback_handler,
+            "detail": (
+                "Bot has a fallback handler for unstructured messages."
+                if has_fallback_handler
+                else (
+                    "No fallback handler detected — plain text messages like distress inputs "
+                    "get no response. Mission #16: bot must reply calmly with one safe next step."
+                )
+            ),
+            "repair": (
+                "Add a catch-all message handler in spark-telegram-bot that replies: "
+                "'It sounds like something is not working. Tell me what you were trying to do "
+                "and I will help you find the next step. Share a short description — no tokens "
+                "or private paths needed.'"
+            ),
+        }
+    )
     ok = all(bool(check["ok"]) for check in checks)
     payload = {
         "ok": ok,
@@ -9483,7 +9508,12 @@ def collect_simple_fix_payload(target: str) -> dict[str, Any]:
                     "repair": "spark providers status",
                 },
             ],
-            "next_commands": ["spark restart spawner-ui", "spark verify --onboarding", "spark logs spawner-ui --lines 80"],
+            "next_commands": [
+                "spark restart spawner-ui",
+                "spark verify --onboarding",
+                "spark logs spawner-ui --lines 80",
+                "spark fix telegram",
+            ],
         },
         "providers": {
             "summary": "Spark provider repair",
